@@ -16,6 +16,9 @@ import Customers from "@/pages/customers";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
+import Reports from "@/pages/reports";
+import ImportStock from "@/pages/import-stock";
+import Backup from "@/pages/backup";
 
 function AuthenticatedApp() {
   const { loading, user } = useAuth();
@@ -54,6 +57,35 @@ function AuthenticatedApp() {
               <Route path="/pos" component={PointOfSale} />
               <Route path="/customers" component={Customers} />
               <Route path="/sales" component={SalesHistory} />
+              <Route path="/reports" component={Reports} />
+              <Route path="/import-stock">
+                {user.role === "admin" ? (
+                  <ImportStock />
+                ) : (
+                  <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="text-center space-y-4">
+                      <h1 className="text-2xl font-semibold">Access Denied</h1>
+                      <p className="text-muted-foreground">
+                        You don't have permission to access this page.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </Route>
+              <Route path="/backup">
+                {user.role === "admin" ? (
+                  <Backup />
+                ) : (
+                  <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="text-center space-y-4">
+                      <h1 className="text-2xl font-semibold">Access Denied</h1>
+                      <p className="text-muted-foreground">
+                        You don't have permission to access this page.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </Route>
               <Route path="/settings">
                 {user.role === "admin" ? (
                   <Settings />

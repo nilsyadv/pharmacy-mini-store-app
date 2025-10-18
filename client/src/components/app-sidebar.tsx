@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, FileText, Settings, Users, BarChart3, Upload, Database } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/lib/auth";
 
 const menuItems = [
   {
@@ -38,6 +39,23 @@ const menuItems = [
     icon: FileText,
   },
   {
+    title: "Reports",
+    url: "/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Import Stock",
+    url: "/import-stock",
+    icon: Upload,
+    adminOnly: true,
+  },
+  {
+    title: "Backup",
+    url: "/backup",
+    icon: Database,
+    adminOnly: true,
+  },
+  {
     title: "Settings",
     url: "/settings",
     icon: Settings,
@@ -46,6 +64,14 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  
+  const filteredMenuItems = menuItems.filter((item: any) => {
+    if (item.adminOnly && user?.role !== 'admin') {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <Sidebar>
@@ -56,7 +82,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                     <Link href={item.url}>

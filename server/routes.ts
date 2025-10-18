@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { login, requireAuth, requireAdmin, requireAdminOrEmployee } from "./auth";
 import { generateInvoicePDF, generateSalesReportPDF } from "./reports";
 import { parsePDF, importMedicinesFromPDF, type PDFFieldMapping } from "./pdf-import";
+import { createDatabaseBackup, exportBackupAsJSON } from "./backup";
 import { 
   loginSchema,
   insertUserSchema, 
@@ -349,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = new Date(endDate as string);
       end.setHours(23, 59, 59, 999);
 
-      const pdfBuffer = await generateSalesReportPDF(start, end, 'daily');
+      const pdfBuffer = await generateSalesReportPDF(start, end, 'custom');
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename=sales-report-${startDate}-to-${endDate}.pdf`);
       res.send(pdfBuffer);
@@ -394,6 +395,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Database Backup routes
+  app.get("/api/backup/sql", requireAdmin, async (req, res) => {
+    try {
+      const { sql, filename } = await createDatabaseBackup();
+      res.setHeader("Content-Type", "application/sql");
+      res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+      res.send(sql);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/backup/json", requireAdmin, async (req, res) => {
+    try {
+      const { data, filename } = await exportBackupAsJSON();
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+      res.json(data);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

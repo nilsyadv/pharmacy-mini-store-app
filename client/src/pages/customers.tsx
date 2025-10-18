@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Search, Edit, Trash2, User } from "lucide-react";
+import { Plus, Search, Edit, Trash2, User, ShoppingCart, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,17 +47,44 @@ import { useAuth } from "@/lib/auth";
 
 export default function Customers() {
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
+  const [viewingPurchases, setViewingPurchases] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   
   const isAdmin = user?.role === "admin";
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
-    queryKey: ["/api/customers"],
+    queryKey: searchQuery ? ["/api/customers/search", searchQuery] : ["/api/customers"],
+    queryFn: async () => {
+      if (searchQuery) {
+        const res = await fetch(`/api/customers/search/${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error("Failed to search customers");
+        return res.json();
+      }
+      const res = await fetch("/api/customers");
+      if (!res.ok) throw new Error("Failed to fetch customers");
+      return res.json();
+    },
   });
+
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["/api/customers", viewingPurchases, "purchases"],
+    queryFn: async () => {
+      if (!viewingPurchases) return [];
+      const res = await fetch(`/api/customers/${viewingPurchases}/purchases`);
+      if (!res.ok) throw new Error("Failed to fetch purchase history");
+      return res.json();
+    },
+    enabled: !!viewingPurchases,
+  });
+
+  const handleSearch = () => {
+    setSearchQuery(search);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertCustomer) => {
@@ -153,17 +180,27 @@ export default function Customers() {
           <CardTitle>Customers</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="relative">
+          <div className="mb-4 flex gap-2">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search customers..."
+                placeholder="Search by name, phone, or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-10"
                 data-testid="input-search-customers"
               />
             </div>
+            <Button onClick={handleSearch} variant="secondary">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </Button>
+            {searchQuery && (
+              <Button onClick={() => { setSearch(""); setSearchQuery(""); }} variant="outline">
+                Clear
+              </Button>
+            )}
           </div>
 
           {isLoading ? (
@@ -183,7 +220,7 @@ export default function Customers() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Address</TableHead>
-                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -202,26 +239,36 @@ export default function Customers() {
                       <TableCell className="max-w-xs truncate">
                         {customer.address || "-"}
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingCustomer(customer)}
-                            data-testid={`button-edit-customer-${customer.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingCustomerId(customer.id)}
-                            data-testid={`button-delete-customer-${customer.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setViewingPurchases(customer.id)}
+                          title="View purchase history"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingCustomer(customer)}
+                              data-testid={`button-edit-customer-${customer.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingCustomerId(customer.id)}
+                              data-testid={`button-delete-customer-${customer.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -274,6 +321,64 @@ export default function Customers() {
           </AlertDialog>
         </>
       )}
+
+      <Dialog open={!!viewingPurchases} onOpenChange={(open) => !open && setViewingPurchases(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Purchase History
+            </DialogTitle>
+            <DialogDescription>
+              View all purchases made by this customer
+            </DialogDescription>
+          </DialogHeader>
+          {purchases.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No purchase history found for this customer
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {purchases.map((sale: any) => (
+                <Card key={sale.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base">
+                          Sale #{sale.id.slice(0, 8)}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {sale.created_at ? new Date(sale.created_at).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-lg">${sale.total_amount.toFixed(2)}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`/api/sales/${sale.id}/invoice`, '_blank')}
+                        >
+                          Download Invoice
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {sale.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-sm border-t pt-2">
+                          <span>{item.name} (x{item.quantity})</span>
+                          <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

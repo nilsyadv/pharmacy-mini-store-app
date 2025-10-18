@@ -68,7 +68,7 @@ export async function generateInvoicePDF(saleId: string): Promise<Buffer> {
 export async function generateSalesReportPDF(
   startDate: Date,
   endDate: Date,
-  reportType: 'daily' | 'monthly'
+  reportType: 'daily' | 'monthly' | 'custom'
 ): Promise<Buffer> {
   const sales = await storage.getSalesByDateRange(startDate, endDate);
 

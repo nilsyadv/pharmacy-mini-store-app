@@ -1,4 +1,3 @@
-import * as pdfParse from "pdf-parse";
 import type { InsertMedicine } from "@shared/schema";
 import { storage } from "./storage";
 
@@ -18,6 +17,7 @@ export interface ParsedPDFData {
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDFData> {
+  const pdfParse = (await import('pdf-parse')).default;
   const data = await pdfParse(buffer);
   const lines = data.text.split('\n').filter((line: string) => line.trim().length > 0);
   
