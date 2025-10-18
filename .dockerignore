@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+dist
+.git
+.gitignore
+.replit
+.local
+.config
+README.md
+*.md
+.vscode
+.idea
+backups/*
+!backups/.gitkeep
