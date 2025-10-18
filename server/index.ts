@@ -1,12 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-import MySQLStoreFactory from "express-mysql-session";
+import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { initializeDatabase, getConnection } from "./db";
-import dotenv from "dotenv";
 
-dotenv.config();
+const PgSession = connectPgSimple(session);
 
 // Validate required environment variables
 if (!process.env.SESSION_SECRET) {
@@ -14,7 +12,10 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 
-const MySQLStore = MySQLStoreFactory(session);
+if (!process.env.DATABASE_URL) {
+  console.error("FATAL: DATABASE_URL environment variable is required");
+  process.exit(1);
+}
 
 async function startServer() {
   const app = express();
@@ -27,34 +28,18 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  // Initialize database first
-  let sessionStore;
-  try {
-    await initializeDatabase();
-    log("Database initialized successfully");
-    
-    // Configure MySQL session store with the connection pool
-    const pool = await getConnection();
-    sessionStore = new MySQLStore({}, pool as any);
-  } catch (error) {
-    console.error("Error initializing database:", error);
-    
-    // In production, fail fast - don't run without persistent sessions
-    if (process.env.NODE_ENV === "production") {
-      console.error("FATAL: Cannot start in production without database");
-      process.exit(1);
-    }
-    
-    log("Warning: Database initialization failed. Using memory-based sessions (DEVELOPMENT ONLY).");
-    // sessionStore will be undefined, fallback to default memory store
-  }
+  // Configure PostgreSQL session store
+  const sessionStore = new PgSession({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+  });
 
   // Configure session middleware BEFORE any routes
   app.use(
     session({
       name: "pharmacy_session",
       secret: process.env.SESSION_SECRET!,
-      store: sessionStore, // undefined means use default MemoryStore
+      store: sessionStore,
       resave: false,
       saveUninitialized: false,
       proxy: process.env.NODE_ENV === "production",
