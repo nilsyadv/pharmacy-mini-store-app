@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import Inventory from "@/pages/inventory";
 import PointOfSale from "@/pages/point-of-sale";
 import SalesHistory from "@/pages/sales-history";
+import Customers from "@/pages/customers";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
@@ -51,6 +52,7 @@ function AuthenticatedApp() {
               <Route path="/" component={Dashboard} />
               <Route path="/inventory" component={Inventory} />
               <Route path="/pos" component={PointOfSale} />
+              <Route path="/customers" component={Customers} />
               <Route path="/sales" component={SalesHistory} />
               <Route path="/settings">
                 {user.role === "admin" ? (

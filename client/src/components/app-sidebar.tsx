@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, Settings } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, FileText, Settings, Users } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -26,6 +26,11 @@ const menuItems = [
     title: "Point of Sale",
     url: "/pos",
     icon: ShoppingCart,
+  },
+  {
+    title: "Customers",
+    url: "/customers",
+    icon: Users,
   },
   {
     title: "Sales History",
