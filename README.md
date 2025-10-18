@@ -1,34 +1,51 @@
 # PharmaCare - Pharmacy Management System
 
-A comprehensive pharmacy management desktop application built with React, Express, and MySQL.
+A comprehensive pharmacy management system built with React, Express, and PostgreSQL (Neon serverless).
 
 ## Features
 
 ✅ **Completed:**
-- MySQL database integration for persistent data
+- PostgreSQL (Neon) database with Drizzle ORM
 - Role-based authentication (Admin & Employee)
 - Session-based secure login/logout
+- Inventory management with CRUD operations
+- Point of sale (POS) system
+- Customer management with purchase history
+- Sales reporting (daily/monthly/custom)
+- PDF invoice generation
+- PDF stock import with field mapping
+- Database backup (SQL and JSON export)
+- Docker support for local testing
+- PWA (Progressive Web App) for Windows desktop installation
 - Modern, mobile-friendly UI with dark mode support
 - Responsive design with Shadcn UI components
 
-🚧 **In Progress:**
-- Customer management system
-- PDF invoice and report generation
-- Google Drive automated backups
-- Electron desktop application packaging
-
 ## Prerequisites
 
-- Node.js 18+ 
-- MySQL 5.7+ or MariaDB 10.3+
-- For desktop deployment: Electron
+- Node.js 20+
+- PostgreSQL 14+ (or use Neon serverless)
+- Docker & Docker Compose (for local testing - optional)
 
-## Installation
+## Quick Start Options
+
+### Option 1: Docker (Recommended for Local Testing)
+
+See [Docker Setup Guide](README-DOCKER.md) for detailed instructions.
+
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+docker-compose up -d
+```
+
+Access at `http://localhost:5000`
+
+### Option 2: Manual Installation
 
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd pharmacy-app
+cd pharmacare
 ```
 
 2. **Install dependencies**
@@ -36,57 +53,47 @@ cd pharmacy-app
 npm install
 ```
 
-3. **Set up MySQL Database**
+3. **Set up PostgreSQL Database**
 
-Create a MySQL database:
-```sql
-CREATE DATABASE pharmacy_db;
-```
+Create a PostgreSQL database or use [Neon](https://neon.tech) for serverless PostgreSQL.
 
 4. **Configure Environment Variables**
 
-Copy `.env.example` to `.env` and update the values:
+Copy `.env.example` to `.env` and update:
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env`:
 ```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=pharmacy_db
-SESSION_SECRET=your_random_secret_here_change_this
+DATABASE_URL=postgresql://user:password@localhost:5432/pharmacare
+SESSION_SECRET=your_random_secret_min_32_characters
+PORT=5000
+NODE_ENV=development
 ```
 
 **Important:** Generate a strong SESSION_SECRET:
 ```bash
-openssl rand -hex 32
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-5. **Initialize Database Tables**
+5. **Push Database Schema**
 
-The application will automatically create required tables on first run:
-- users
-- customers
-- medicines
-- sales
-- backups
-- sessions (for session storage)
+```bash
+npm run db:push
+```
 
 6. **Create Admin User**
 
-Run the initialization script:
-```bash
-npm run init-admin
-```
-
-This creates an admin user with:
+The admin user is created automatically on first run:
 - Username: `admin`
 - Password: `admin123`
 
 **⚠️ IMPORTANT: Change this password after first login!**
+
+### Option 3: Install as Windows Desktop App
+
+See [PWA Installation Guide](README-PWA.md) for installing PharmaCare as a desktop application on Windows.
 
 ## Running the Application
 
@@ -127,11 +134,14 @@ On first setup, use these credentials to log in:
 
 ## Tech Stack
 
-- **Frontend:** React, TypeScript, Tailwind CSS, Shadcn UI
-- **Backend:** Express.js, Node.js
-- **Database:** MySQL
-- **Session Store:** MySQL (express-mysql-session)
-- **Authentication:** bcrypt, express-session
+- **Frontend:** React, TypeScript, Tailwind CSS, Shadcn UI, Wouter (routing), TanStack Query
+- **Backend:** Express.js, Node.js, TypeScript
+- **Database:** PostgreSQL (Neon serverless), Drizzle ORM
+- **Session Store:** PostgreSQL (connect-pg-simple)
+- **Authentication:** Passport.js, bcrypt, express-session
+- **PDF:** PDFKit (generation), pdf-parse (import)
+- **Deployment:** Docker, Docker Compose
+- **PWA:** Service Workers, Web App Manifest
 
 ## Project Structure
 
@@ -157,17 +167,18 @@ On first setup, use these credentials to log in:
 
 ### Database Connection Issues
 
-If you see `ECONNREFUSED 127.0.0.1:3306`:
-1. Make sure MySQL is running: `mysql -u root -p`
-2. Check your `.env` credentials
-3. Verify the database exists: `SHOW DATABASES;`
+If you see connection errors:
+1. Verify PostgreSQL is running
+2. Check your `DATABASE_URL` in `.env`
+3. For Docker: ensure postgres container is healthy: `docker-compose ps`
 
 ### Session Issues
 
 If authentication doesn't persist:
-1. Verify SESSION_SECRET is set in `.env`
-2. Check MySQL session table exists
+1. Verify SESSION_SECRET is set in `.env` (minimum 32 characters)
+2. Check PostgreSQL session table exists
 3. Clear browser cookies and retry
+4. For Docker: restart the app container: `docker-compose restart app`
 
 ### Port Already in Use
 
@@ -179,14 +190,19 @@ lsof -ti:5000 | xargs kill -9
 
 Or change the PORT in your environment.
 
+## Additional Guides
+
+- 📦 [Docker Setup for Local Testing](README-DOCKER.md)
+- 💻 [Install as Windows Desktop App (PWA)](README-PWA.md)
+- 📄 [Deployment Guide](DEPLOYMENT.md)
+
 ## Upcoming Features
 
-- **Customer Management:** Complete CRUD for customer records
-- **PDF Generation:** Invoices, daily & monthly sales reports
-- **Google Drive Backup:** Automated database backups
-- **Electron Desktop App:** Standalone desktop application
 - **Barcode Scanning:** Quick product lookup
 - **Prescription Management:** Track prescriptions and refills
+- **Advanced Analytics:** Sales trends and inventory forecasting
+- **Multi-location Support:** Manage multiple pharmacy branches
+- **Supplier Management:** Track suppliers and purchase orders
 
 ## Security Notes
 
