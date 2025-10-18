@@ -63,11 +63,13 @@ docker-compose up -d --build
 
 ## Default Admin Credentials
 
-After first startup, an admin user will be created:
+After first startup, an admin user is automatically created:
 - **Username:** admin
 - **Password:** admin123
 
 **Important:** Change the admin password immediately after first login!
+
+**Note:** The admin user is created on the first successful login attempt. If you're having database connection issues, the admin user may not be created until the connection is resolved.
 
 ## Database Access
 
@@ -81,6 +83,20 @@ docker-compose exec postgres psql -U postgres -d pharmacare
 Backups are stored in the `./backups` directory on your host machine.
 
 ## Troubleshooting
+
+### Database Connection Error (ECONNREFUSED)
+If you see `Error connecting to database: fetch failed` or `ECONNREFUSED` errors:
+
+**Cause:** The app was trying to use Neon's serverless driver for a local PostgreSQL connection.
+
+**Solution:** This has been fixed in the latest version. The app now automatically detects whether to use the Neon serverless driver (for Replit/production) or the standard PostgreSQL driver (for Docker/local).
+
+To apply the fix:
+```bash
+# Rebuild the containers with the updated code
+docker-compose down
+docker-compose up -d --build
+```
 
 ### Port already in use
 If port 5000 or 5432 is already in use, change the port in the `.env` file:
@@ -100,12 +116,48 @@ View database logs:
 docker-compose logs postgres
 ```
 
+View application logs:
+```bash
+docker-compose logs app
+```
+
+### Admin user not created
+If the admin user doesn't exist, you can create it manually:
+
+1. Access the PostgreSQL database:
+   ```bash
+   docker-compose exec postgres psql -U postgres -d pharmacare
+   ```
+
+2. Or restart the containers to trigger auto-creation:
+   ```bash
+   docker-compose restart app
+   ```
+
 ### Reset everything
 To completely reset the application and database:
 ```bash
 docker-compose down -v
-docker-compose up -d
+docker-compose up -d --build
 ```
+
+## How It Works
+
+### Database Driver Selection
+The application automatically detects the environment and uses the appropriate database driver:
+
+- **Local/Docker:** Uses standard PostgreSQL driver (`pg`) for direct connection
+- **Replit/Production:** Uses Neon serverless HTTP driver for cloud database
+
+This is determined by checking the `DATABASE_URL` format:
+- Starts with `https://` → Neon serverless driver
+- Starts with `postgresql://` → Standard PostgreSQL driver
+
+### Auto-created Resources
+On first startup, the application automatically:
+1. Creates database tables (via Drizzle migrations)
+2. Creates the default admin user (on first login attempt)
+3. Sets up session storage
 
 ## Development vs Production
 

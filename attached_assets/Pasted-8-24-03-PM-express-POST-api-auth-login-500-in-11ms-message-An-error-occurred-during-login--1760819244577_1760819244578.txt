@@ -1,0 +1,43 @@
+8:24:03 PM [express] POST /api/auth/login 500 in 11ms :: {"message":"An error occurred during login.…
+pharmacare_app  | Login error: NeonDbError: Error connecting to database: fetch failed
+pharmacare_app  |     at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1549:24)
+pharmacare_app  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+pharmacare_app  |     at async NeonHttpPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-http/session.js:40:20)
+pharmacare_app  |     at async PostgresStorage.getUserByUsername (file:///app/dist/index.js:186:20)
+pharmacare_app  |     at async login (file:///app/dist/index.js:410:16)
+pharmacare_app  |     at async file:///app/dist/index.js:739:20 {
+pharmacare_app  |   severity: undefined,
+pharmacare_app  |   code: undefined,
+pharmacare_app  |   detail: undefined,
+pharmacare_app  |   hint: undefined,
+pharmacare_app  |   position: undefined,
+pharmacare_app  |   internalPosition: undefined,
+pharmacare_app  |   internalQuery: undefined,
+pharmacare_app  |   where: undefined,
+pharmacare_app  |   schema: undefined,
+pharmacare_app  |   table: undefined,
+pharmacare_app  |   column: undefined,
+pharmacare_app  |   dataType: undefined,
+pharmacare_app  |   constraint: undefined,
+pharmacare_app  |   file: undefined,
+pharmacare_app  |   line: undefined,
+pharmacare_app  |   routine: undefined,
+pharmacare_app  |   sourceError: TypeError: fetch failed
+pharmacare_app  |       at node:internal/deps/undici/undici:13510:13
+pharmacare_app  |       at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+pharmacare_app  |       at async execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1548:15)
+pharmacare_app  |       at async NeonHttpPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-http/session.js:40:20)
+pharmacare_app  |       at async PostgresStorage.getUserByUsername (file:///app/dist/index.js:186:20)
+pharmacare_app  |       at async login (file:///app/dist/index.js:410:16)
+pharmacare_app  |       at async file:///app/dist/index.js:739:20 {
+pharmacare_app  |     [cause]: Error: connect ECONNREFUSED 172.21.0.2:443
+pharmacare_app  |         at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+pharmacare_app  |       errno: -111,
+pharmacare_app  |       code: 'ECONNREFUSED',
+pharmacare_app  |       syscall: 'connect',
+pharmacare_app  |       address: '172.21.0.2',
+pharmacare_app  |       port: 443
+pharmacare_app  |     }
+pharmacare_app  |   }
+pharmacare_app  | }
+pharmacare_app  | 8:24:03 PM [express] POST /api/auth/login 500 in 9ms :: {"message":"An error occurred during login. …
