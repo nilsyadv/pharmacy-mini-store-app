@@ -9,7 +9,7 @@ import {
   type InsertSale,
 } from "@shared/schema";
 import { db, users, customers, medicines, sales } from "../db";
-import { eq } from "drizzle-orm";
+import { eq, or, like, desc, and, gte, lte } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -22,6 +22,8 @@ export interface IStorage {
   // Customer methods
   getCustomer(id: string): Promise<Customer | undefined>;
   getAllCustomers(): Promise<Customer[]>;
+  searchCustomers(query: string): Promise<Customer[]>;
+  getCustomerPurchaseHistory(customerId: string): Promise<Sale[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
@@ -36,6 +38,7 @@ export interface IStorage {
   // Sale methods
   getSale(id: string): Promise<Sale | undefined>;
   getAllSales(): Promise<Sale[]>;
+  getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
 }
 
@@ -76,8 +79,35 @@ export class PostgresStorage implements IStorage {
   }
 
   async getAllCustomers(): Promise<Customer[]> {
-    const result = await db.select().from(customers).orderBy(customers.created_at);
+    const result = await db.select().from(customers).orderBy(desc(customers.created_at));
     return result as Customer[];
+  }
+
+  async searchCustomers(query: string): Promise<Customer[]> {
+    const searchPattern = `%${query}%`;
+    const result = await db.select().from(customers).where(
+      or(
+        like(customers.name, searchPattern),
+        like(customers.phone, searchPattern),
+        like(customers.email, searchPattern)
+      )
+    ).orderBy(desc(customers.created_at));
+    return result as Customer[];
+  }
+
+  async getCustomerPurchaseHistory(customerId: string): Promise<Sale[]> {
+    const result = await db.select().from(sales)
+      .where(eq(sales.customer_id, customerId))
+      .orderBy(desc(sales.created_at));
+    return result.map(row => ({
+      id: row.id,
+      customer_id: row.customer_id,
+      customer_name: row.customer_name,
+      items: JSON.parse(row.items),
+      total_amount: parseFloat(row.total_amount),
+      user_id: row.user_id,
+      created_at: row.created_at,
+    })) as Sale[];
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
@@ -227,7 +257,25 @@ export class PostgresStorage implements IStorage {
   }
 
   async getAllSales(): Promise<Sale[]> {
-    const result = await db.select().from(sales).orderBy(sales.created_at);
+    const result = await db.select().from(sales).orderBy(desc(sales.created_at));
+    return result.map(row => ({
+      id: row.id,
+      customer_id: row.customer_id,
+      customer_name: row.customer_name,
+      items: JSON.parse(row.items),
+      total_amount: parseFloat(row.total_amount),
+      user_id: row.user_id,
+      created_at: row.created_at,
+    })) as Sale[];
+  }
+
+  async getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]> {
+    const result = await db.select().from(sales).where(
+      and(
+        gte(sales.created_at, startDate),
+        lte(sales.created_at, endDate)
+      )
+    ).orderBy(desc(sales.created_at));
     return result.map(row => ({
       id: row.id,
       customer_id: row.customer_id,

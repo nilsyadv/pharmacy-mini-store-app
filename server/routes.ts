@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
 import { login, requireAuth, requireAdmin, requireAdminOrEmployee } from "./auth";
+import { generateInvoicePDF, generateSalesReportPDF } from "./reports";
+import { parsePDF, importMedicinesFromPDF, type PDFFieldMapping } from "./pdf-import";
 import { 
   loginSchema,
   insertUserSchema, 
@@ -9,6 +12,8 @@ import {
   insertSaleSchema, 
   insertCustomerSchema 
 } from "@shared/schema";
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -106,6 +111,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/customers/search/:query", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const customers = await storage.searchCustomers(req.params.query);
+      res.json(customers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/customers/:id", requireAdminOrEmployee, async (req, res) => {
     try {
       const customer = await storage.getCustomer(req.params.id);
@@ -113,6 +127,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Customer not found" });
       }
       res.json(customer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/customers/:id/purchases", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const purchases = await storage.getCustomerPurchaseHistory(req.params.id);
+      res.json(purchases);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -263,6 +286,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Invoice and Reports routes
+  app.get("/api/sales/:id/invoice", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const pdfBuffer = await generateInvoicePDF(req.params.id);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=invoice-${req.params.id}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/reports/sales/daily", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const { date } = req.query;
+      const targetDate = date ? new Date(date as string) : new Date();
+      const startDate = new Date(targetDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      const pdfBuffer = await generateSalesReportPDF(startDate, endDate, 'daily');
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=daily-report-${targetDate.toISOString().split('T')[0]}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/reports/sales/monthly", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const { year, month } = req.query;
+      const targetYear = year ? parseInt(year as string) : new Date().getFullYear();
+      const targetMonth = month ? parseInt(month as string) - 1 : new Date().getMonth();
+      
+      const startDate = new Date(targetYear, targetMonth, 1);
+      const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+      const pdfBuffer = await generateSalesReportPDF(startDate, endDate, 'monthly');
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=monthly-report-${targetYear}-${String(targetMonth + 1).padStart(2, '0')}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/reports/sales/custom", requireAdminOrEmployee, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+
+      const pdfBuffer = await generateSalesReportPDF(start, end, 'daily');
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=sales-report-${startDate}-to-${endDate}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PDF Import routes
+  app.post("/api/import/pdf/parse", requireAdmin, upload.single('pdf'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No PDF file uploaded" });
+      }
+
+      const parsedData = await parsePDF(req.file.buffer);
+      res.json({
+        lineCount: parsedData.lines.length,
+        lines: parsedData.lines.slice(0, 20),
+        allLines: parsedData.lines,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/import/pdf/medicines", requireAdmin, upload.single('pdf'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No PDF file uploaded" });
+      }
+
+      const fieldMapping: PDFFieldMapping = JSON.parse(req.body.fieldMapping || '{}');
+      const startLine = parseInt(req.body.startLine || '0');
+      const endLine = req.body.endLine ? parseInt(req.body.endLine) : undefined;
+
+      const result = await importMedicinesFromPDF(
+        req.file.buffer,
+        fieldMapping,
+        startLine,
+        endLine
+      );
+
+      res.json(result);
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
